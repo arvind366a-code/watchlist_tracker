@@ -153,6 +153,56 @@ class MonitoringService:
         df = pd.DataFrame(history)
         return self.indicator_calc.calculate(df)
 
+    def _format_all_indicators(self, indicators: dict[str, float]) -> str:
+        """Format all indicators for alert context."""
+        lines = []
+        
+        # RSI
+        rsi = indicators.get("rsi_14")
+        if rsi:
+            status = "OVERSOLD" if rsi < 30 else "OVERBOUGHT" if rsi > 70 else ""
+            lines.append(f"RSI: {rsi:.1f} {status}")
+        
+        # Supertrend
+        st_dir = indicators.get("supertrend_dir")
+        st_val = indicators.get("supertrend")
+        if st_dir:
+            direction = "BULLISH" if st_dir > 0 else "BEARISH"
+            if st_val:
+                lines.append(f"Supertrend: {direction} (₹{st_val:.2f})")
+            else:
+                lines.append(f"Supertrend: {direction}")
+        
+        # EMAs
+        ema9 = indicators.get("ema_9")
+        ema21 = indicators.get("ema_21")
+        ema50 = indicators.get("ema_50")
+        if ema9 and ema21:
+            trend = "📈9>21" if ema9 > ema21 else "📉9<21"
+            lines.append(f"EMA 9/21: {trend}")
+        if ema50:
+            lines.append(f"EMA 50: {ema50:.2f}")
+        
+        # MACD
+        macd = indicators.get("macd")
+        macd_signal = indicators.get("macd_signal")
+        if macd and macd_signal:
+            trend = "📈" if macd > macd_signal else "📉"
+            lines.append(f"MACD: {macd:.2f} vs Signal {macd_signal:.2f} {trend}")
+        
+        # ATR
+        atr = indicators.get("atr_14")
+        if atr:
+            lines.append(f"ATR: {atr:.2f}")
+        
+        # Volume
+        vol_ratio = indicators.get("volume_ratio")
+        if vol_ratio:
+            status = "HIGH" if vol_ratio > 2 else ""
+            lines.append(f"Vol: {vol_ratio:.1f}x avg {status}")
+        
+        return "\n".join(lines) if lines else "No indicators"
+
     def check_alerts(
         self,
         entry: WatchlistEntry,
@@ -195,36 +245,86 @@ class MonitoringService:
                 threshold = alert.params.get("threshold", 30)
                 if rsi < threshold:
                     should_trigger = True
-                    value_str = f"RSI {rsi:.1f} < {threshold}"
+                    value_str = f"RSI {rsi:.1f} < {threshold} (OVERSOLD)"
 
             elif alert.type == AlertType.RSI_OVERBOUGHT:
                 rsi = indicators.get("rsi_14", 0)
                 threshold = alert.params.get("threshold", 70)
                 if rsi > threshold:
                     should_trigger = True
-                    value_str = f"RSI {rsi:.1f} > {threshold}"
+                    value_str = f"RSI {rsi:.1f} > {threshold} (OVERBOUGHT)"
+
+            elif alert.type == AlertType.SUPERTREND_BULLISH:
+                st_dir = indicators.get("supertrend_dir", 0)
+                if st_dir and st_dir > 0:
+                    st_val = indicators.get("supertrend", 0)
+                    should_trigger = True
+                    value_str = f"Supertrend BULLISH (support: {st_val:.2f})"
+
+            elif alert.type == AlertType.SUPERTREND_BEARISH:
+                st_dir = indicators.get("supertrend_dir", 0)
+                if st_dir and st_dir < 0:
+                    st_val = indicators.get("supertrend", 0)
+                    should_trigger = True
+                    value_str = f"Supertrend BEARISH (resistance: {st_val:.2f})"
 
             elif alert.type == AlertType.EMA_CROSSOVER_BULLISH:
                 ema_fast = indicators.get(f"ema_{alert.params.get('fast', 9)}")
                 ema_slow = indicators.get(f"ema_{alert.params.get('slow', 21)}")
                 if ema_fast and ema_slow and ema_fast > ema_slow:
                     should_trigger = True
-                    value_str = f"EMA crossover bullish"
+                    value_str = f"EMA{alert.params.get('fast', 9)}/{alert.params.get('slow', 21)} BULLISH cross"
+
+            elif alert.type == AlertType.EMA_CROSSOVER_BEARISH:
+                ema_fast = indicators.get(f"ema_{alert.params.get('fast', 9)}")
+                ema_slow = indicators.get(f"ema_{alert.params.get('slow', 21)}")
+                if ema_fast and ema_slow and ema_fast < ema_slow:
+                    should_trigger = True
+                    value_str = f"EMA{alert.params.get('fast', 9)}/{alert.params.get('slow', 21)} BEARISH cross"
+
+            elif alert.type == AlertType.MACD_CROSSOVER_BULLISH:
+                macd = indicators.get("macd", 0)
+                macd_signal = indicators.get("macd_signal", 0)
+                if macd and macd_signal and macd > macd_signal:
+                    should_trigger = True
+                    value_str = f"MACD BULLISH crossover"
+
+            elif alert.type == AlertType.MACD_CROSSOVER_BEARISH:
+                macd = indicators.get("macd", 0)
+                macd_signal = indicators.get("macd_signal", 0)
+                if macd and macd_signal and macd < macd_signal:
+                    should_trigger = True
+                    value_str = f"MACD BEARISH crossover"
 
             elif alert.type == AlertType.VOLUME_SURGE:
                 vol_ratio = indicators.get("volume_ratio", 0)
                 threshold = alert.params.get("multiplier", 2.0)
                 if vol_ratio > threshold:
                     should_trigger = True
-                    value_str = f"Volume {vol_ratio:.1f}x average"
+                    value_str = f"Volume {vol_ratio:.1f}x average (> {threshold}x)"
+
+            elif alert.type == AlertType.PRICE_NEAR_EMA:
+                ema_period = alert.params.get("ema_period", 50)
+                tolerance_pct = alert.params.get("tolerance_pct", 2.0)
+                ema_val = indicators.get(f"ema_{ema_period}")
+                if ema_val:
+                    price = float(data.price)
+                    diff_pct = abs((price - ema_val) / ema_val * 100)
+                    if diff_pct < tolerance_pct:
+                        should_trigger = True
+                        value_str = f"Price {price:.2f} within {diff_pct:.1f}% of EMA{ema_period} ({ema_val:.2f})"
 
             if should_trigger:
+                # Build full context message
+                context = self._format_all_indicators(indicators)
+                full_message = f"{entry.symbol}: {value_str}\n\nAll Indicators:\n{context}"
+                
                 triggered_alert = TriggeredAlert(
                     entry_id=entry.symbol,
                     alert=alert,
                     market_data=data,
                     value=value_str,
-                    message=f"{entry.symbol}: {value_str}",
+                    message=full_message,
                 )
                 self.store.log_alert(triggered_alert)
                 triggered.append(triggered_alert)

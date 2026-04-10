@@ -21,9 +21,14 @@ class AlertType(str, Enum):
     PRICE_BELOW = "price_below"
     RSI_OVERSOLD = "rsi_oversold"
     RSI_OVERBOUGHT = "rsi_overbought"
-    EMA_CROSSOVER_BULLISH = "ema_crossover_bullish"
-    EMA_CROSSOVER_BEARISH = "ema_crossover_bearish"
-    VOLUME_SURGE = "volume_surge"
+    SUPERTREND_BULLISH = "supertrend_bullish"  # Flips to bullish
+    SUPERTREND_BEARISH = "supertrend_bearish"  # Flips to bearish
+    EMA_CROSSOVER_BULLISH = "ema_crossover_bullish"  # EMA9 > EMA21
+    EMA_CROSSOVER_BEARISH = "ema_crossover_bearish"  # EMA9 < EMA21
+    MACD_CROSSOVER_BULLISH = "macd_crossover_bullish"
+    MACD_CROSSOVER_BEARISH = "macd_crossover_bearish"
+    VOLUME_SURGE = "volume_surge"  # Volume >2x average
+    PRICE_NEAR_EMA = "price_near_ema"  # Price within 2% of EMA
 
 
 class AlertSpec(BaseModel):
