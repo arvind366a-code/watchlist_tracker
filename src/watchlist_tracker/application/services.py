@@ -67,6 +67,18 @@ class IndicatorCalculator:
                 elif 'BBL' in col:
                     result["bb_lower"] = float(bb[col].iloc[-1])
 
+        # Supertrend
+        supertrend = ta.supertrend(df["high"], df["low"], close, length=10, multiplier=3.0)
+        if supertrend is not None and not supertrend.empty:
+            # Columns: SUPERT_10_3.0, SUPERTd_10_3.0, SUPERTl_10_3.0, SUPERTs_10_3.0
+            st_col = [c for c in supertrend.columns if c.startswith("SUPERT_") and "d" not in c.lower() and "l" not in c.lower() and "s" not in c.lower()]
+            if st_col:
+                result["supertrend"] = float(supertrend[st_col[0]].iloc[-1])
+            # Direction: 1 = bullish, -1 = bearish
+            st_dir = [c for c in supertrend.columns if "SUPERTd" in c]
+            if st_dir:
+                result["supertrend_dir"] = float(supertrend[st_dir[0]].iloc[-1])
+
         # Volume relative to average
         vol_sma = ta.sma(volume, length=20)
         if not vol_sma.empty:

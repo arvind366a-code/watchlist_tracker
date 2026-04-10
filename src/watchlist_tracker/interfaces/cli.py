@@ -109,7 +109,7 @@ def list_entries(
     table.add_column("Tags")
     if show_indicators:
         table.add_column("RSI", justify="right")
-        table.add_column("EMA 21", justify="right")
+        table.add_column("Super", justify="right")
 
     for entry in entries:
         data = market_data.get(entry.symbol)
@@ -135,8 +135,9 @@ def list_entries(
                 rsi = indicators.get("rsi_14", 0)
                 rsi_str = f"{rsi:.1f}" if rsi else "-"
                 ema21 = indicators.get("ema_21", 0)
-                ema_str = f"{ema21:.2f}" if ema21 else "-"
-                row.extend([rsi_str, ema_str])
+                st_dir = indicators.get("supertrend_dir", 0)
+                super_str = "📈" if st_dir and st_dir > 0 else "📉" if st_dir else "-"
+                row.extend([rsi_str, super_str])
 
             table.add_row(*row)
         else:
