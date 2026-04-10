@@ -61,7 +61,9 @@ class WatchlistStore:
     def update_entry(self, symbol: str, updates: dict[str, Any]) -> bool:
         """Update an entry."""
         Entry = Query()
-        return self.entries_table.update(updates, Entry.symbol == symbol.upper()) > 0
+        # TinyDB update returns number of documents updated
+        result = self.entries_table.update(updates, Entry.symbol == symbol.upper())
+        return len(result) > 0 if isinstance(result, list) else result > 0
 
     def remove_entry(self, symbol: str) -> bool:
         """Remove an entry from watchlist."""

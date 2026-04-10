@@ -183,7 +183,7 @@ def alerts(
         console.print(table)
         return
 
-    if add_type and symbol and value:
+    if add_type and symbol:
         # Add alert to entry
         entry = store.get_entry(symbol)
         if not entry:
@@ -193,7 +193,15 @@ def alerts(
         try:
             alert_type = AlertType(add_type)
         except ValueError:
-            console.print(f"[red]Invalid alert type. Use: price_above, price_below, rsi_oversold, rsi_overbought[/red]")
+            valid_types = [e.value for e in AlertType]
+            console.print(f"[red]Invalid alert type. Valid types:[/red]")
+            for t in valid_types:
+                console.print(f"  - {t}")
+            raise typer.Exit(1)
+
+        # Price alerts need a value
+        if alert_type in (AlertType.PRICE_ABOVE, AlertType.PRICE_BELOW) and value is None:
+            console.print(f"[red]✗ {add_type} requires --value[/red]")
             raise typer.Exit(1)
 
         alert = AlertSpec(type=alert_type, value=value)
@@ -201,7 +209,10 @@ def alerts(
 
         # Update entry
         store.update_entry(symbol, {"alerts": [a.model_dump() for a in entry.alerts]})
-        console.print(f"[green]✓ Added {add_type} alert for {symbol} at {value}[/green]")
+        if value:
+            console.print(f"[green]✓ Added {add_type} alert for {symbol} at {value}[/green]")
+        else:
+            console.print(f"[green]✓ Added {add_type} alert for {symbol}[/green]")
         return
 
     # List all configured alerts
