@@ -36,13 +36,13 @@ class IndicatorCalculator:
 
         # RSI
         rsi = ta.rsi(close, length=14)
-        if not rsi.empty:
+        if rsi is not None and hasattr(rsi, 'empty') and not rsi.empty:
             result["rsi_14"] = float(rsi.iloc[-1])
 
         # EMAs
         for period in [9, 21, 50, 200]:
             ema = ta.ema(close, length=period)
-            if not ema.empty:
+            if ema is not None and hasattr(ema, 'empty') and not ema.empty:
                 result[f"ema_{period}"] = float(ema.iloc[-1])
 
         # MACD
@@ -53,7 +53,7 @@ class IndicatorCalculator:
 
         # ATR
         atr = ta.atr(df["high"], df["low"], close, length=14)
-        if not atr.empty:
+        if atr is not None and hasattr(atr, 'empty') and not atr.empty:
             result["atr_14"] = float(atr.iloc[-1])
 
         # Bollinger Bands
@@ -81,7 +81,7 @@ class IndicatorCalculator:
 
         # Volume relative to average
         vol_sma = ta.sma(volume, length=20)
-        if not vol_sma.empty:
+        if vol_sma is not None and hasattr(vol_sma, 'empty') and not vol_sma.empty:
             result["volume_ratio"] = float(volume.iloc[-1]) / float(vol_sma.iloc[-1])
 
         return result
